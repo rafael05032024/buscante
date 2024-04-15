@@ -14,20 +14,10 @@ export class LivroService {
     private http: HttpClient
   ) { }
 
-  buscar(q: string): Observable<Item[]> {
+  buscar(q: string): Observable<LivrosResultado> {
     const url = `${this.baseUrl}/volumes`;
     const params = new HttpParams().append('q', q);
 
     return this.http.get<LivrosResultado>(url, { params })
-    .pipe(
-      tap((apiReturn) => {
-        const { items } = apiReturn;
-        console.log({ items });
-
-        return '';
-      }),
-      map((apiReturn) => apiReturn.items),
-      tap((r) => console.log(r))
-    );
   }
 }

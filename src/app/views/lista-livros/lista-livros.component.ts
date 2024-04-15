@@ -1,43 +1,59 @@
-import { Component, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Component } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import {
+  Subscription,
+  switchMap,
+  map,
+  tap,
+  filter,
+  debounceTime,
+  catchError,
+  EMPTY,
+  throwError
+} from 'rxjs';
+
 import { Item, Livro } from '../../modes/interfaces';
 import { LivroVolumeInfo } from '../../modes/livroVolumeInfo';
 import { LivroService } from 'src/app/service/livro.service';
+
+const PAUSA = 300;
 
 @Component({
   selector: 'app-lista-livros',
   templateUrl: './lista-livros.component.html',
   styleUrls: ['./lista-livros.component.css']
 })
-export class ListaLivrosComponent implements OnDestroy {
-  campoBusca!: string;
+export class ListaLivrosComponent {
+  campoBusca = new FormControl('');
+  mensgemErro = '';
   subs: Subscription[] = [];
-  listaLivros!: Livro[];
+  qtdeResultadosEncontrados!: number;
+  livrosEncontrados$ = this.campoBusca.valueChanges
+  .pipe(
+    debounceTime(PAUSA),
+    filter((valorDigitado) => valorDigitado.length >= 3),
+    switchMap((valorDigitado) => this.service.buscar(valorDigitado)),
+    catchError((error) => {
+      console.error(error);
+
+      this.mensgemErro = 'Deu ruim sua pesquisa recarregue a aplicação!';
+
+      return throwError(() => new Error('Deu ruim!'));
+    }),
+    tap(() => console.log('requesting server...')),
+    map(({ items, totalItems }) => {
+      this.qtdeResultadosEncontrados = totalItems;
+
+      return items ?? [];
+    }),
+    map((items) => this.livrosResultadosParaLivros(items)),
+  );
 
   constructor(
     private service: LivroService
   ) { }
 
-  ngOnDestroy(): void {
-    this.subs.forEach(sub => sub.unsubscribe())
-  }
-
   livrosResultadosParaLivros(items: Item[]) {
     return items.map((item) => new LivroVolumeInfo(item));
   }
-
-  buscaLivros() {
-    const sub = this
-    .service
-    .buscar(this.campoBusca)
-    .subscribe({
-      next: (response) => this.listaLivros = this.livrosResultadosParaLivros(response),
-      error: (error) => console.error(error)
-    });
-
-    this.subs.push(sub);
-  }
 }
-
-
-
